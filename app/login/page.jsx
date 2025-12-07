@@ -14,7 +14,7 @@ export default function LoginPage() {
       provider: "google",
       options: {
         redirectTo: 
-          typeOf window !== "undefined" && window.location.origin + "/auth/callback",
+          typeof window !== "undefined" && window.location.origin + "/auth/callback",
       },
     });
     if (error) console.log("Login error:", error);
