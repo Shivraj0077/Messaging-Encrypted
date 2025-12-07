@@ -13,7 +13,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "http://localhost:3000/auth/callback",
+        redirectTo: 
+          typeOf window !== "undefined" && window.location.origin + "/auth/callback",
       },
     });
     if (error) console.log("Login error:", error);
