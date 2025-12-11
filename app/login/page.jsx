@@ -20,10 +20,17 @@ export default function LoginPage() {
       provider: "google",
       options: {
         redirectTo: redirectUrl,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
       },
     });
 
-    if (error) console.log("Login error:", error);
+    if (error) {
+      console.error("Login error:", error);
+      alert("Failed to sign in. Please try again.");
+    }
   };
 
   useEffect(() => {

@@ -5,6 +5,7 @@ export default function Page() {
   return (
     <Link href={"/login"}>
       <button>Login </button>
+
     </Link>
   )
 }
