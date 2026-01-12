@@ -108,7 +108,6 @@ The server stores **multiple encrypted copies** of the same ChatKey — one per 
 7. New device decrypts ChatKey locally
 8. Full chat history becomes readable
 
-> The server **never participates in encryption or decryption**.
 
 ---
 
