@@ -1,272 +1,218 @@
-SecureChat — WhatsApp-Like Multi-Device Encrypted Messaging System
-Table of Contents
+# WhatsApp-Style Multi-Device End-to-End Encrypted Messaging System
 
-Overview
+## Table of Contents
 
-Core Features
+* [Overview](#overview)
+* [Key Features](#key-features)
+* [Encryption Architecture](#encryption-architecture)
+* [Multi-Device Design](#multi-device-design)
+* [Client Logic](#client-logic)
+* [Storage Rules](#storage-rules)
+* [System Architecture](#system-architecture)
+* [Tech Stack](#tech-stack)
+* [Security Guarantees](#security-guarantees)
+* [Failure & Recovery Model](#failure--recovery-model)
+* [Interview Highlights](#interview-highlights)
 
-End-to-End Encryption Model
+---
 
-Multi-Device Architecture
+## Overview
 
-Cryptography Design
+This project is a **WhatsApp-like real-time messaging system** implementing **true end-to-end encryption (E2EE)** with **multi-device synchronization**.
 
-Storage Rules
+The system ensures:
 
-Client Workflow
+* Messages are encrypted **before leaving the device**
+* The server **never sees plaintext**
+* Each device is treated as a **separate cryptographic identity**
+* Secure key re-sharing when new devices are linked
 
-Backend Architecture
+The architecture closely mirrors real-world systems used by WhatsApp and Signal, focusing on **cryptographic correctness, scalability, and fault tolerance**.
 
-System Design Concepts
+---
 
-Installation
+## Key Features
 
-Security Guarantees
+### 1. End-to-End Encrypted Messaging 🔐
 
-Interview Highlights
+* AES-GCM symmetric encryption for message payloads
+* Per-conversation **single ChatKey**
+* Unique IV generated per message
+* Server stores **ciphertext only**
 
-Demo
+### 2. True Multi-Device Support 📱💻
 
-Overview
+* Each device has its **own public/private keypair**
+* Chat keys encrypted **independently per device**
+* Secure device linking without server decryption
+* Seamless message sync across devices
 
-SecureChat is a WhatsApp-like real-time messaging system designed with true end-to-end encryption (E2EE) and multi-device synchronization.
-The system ensures that only user devices can decrypt messages, while the server acts purely as a ciphertext relay and metadata store.
+### 3. Real-Time Messaging ⚡
 
-The design supports:
+* WebSocket-based delivery
+* Supabase Realtime for live updates
+* Offline reconciliation on reconnect
+* Delivery acknowledgements and retries
 
-Multiple devices per user
+---
 
-Secure device linking
+## Encryption Architecture
 
-Forward secrecy at the conversation level
+### Core Principles
 
-Zero plaintext exposure on the server
+1. Every device generates its **own asymmetric keypair**
+2. **Private keys never leave the device**
+3. Server stores **public keys only**
+4. Each chat has **one symmetric ChatKey**
+5. Messages are encrypted using **AES-GCM(ChatKey)**
+6. ChatKey is encrypted **once per device** using device public keys
+7. Server never decrypts messages or keys
 
-Core Features
-🔐 End-to-End Encryption
+---
 
-AES-GCM encryption for messages
+### Message Encryption Flow
 
-Per-chat symmetric encryption keys
+```
+Plaintext Message
+        ↓
+Encrypt(Message, ChatKey, IV)
+        ↓
+Ciphertext + IV
+        ↓
+Server Storage (No Plaintext)
+```
 
-RSA / ECC public-key encryption for device key sharing
+---
 
-Zero server-side decryption
+### ChatKey Encryption (Per Device)
 
-📱 Multi-Device Support
+```
+Encrypt(ChatKey, DeviceA_PublicKey)
+Encrypt(ChatKey, DeviceB_PublicKey)
+```
 
-Independent cryptographic identity per device
+The server stores **multiple encrypted copies** of the same ChatKey — one per device.
 
-Secure chat key re-sharing when a new device joins
+---
 
-Device revocation support
+## Multi-Device Design
 
-⚡ Real-Time Messaging
+### Device Linking Flow
 
-Supabase Realtime / WebSockets
+1. New device generates a keypair
+2. Public key uploaded to server
+3. Server notifies existing devices
+4. Existing device encrypts ChatKey using new device’s public key
+5. Encrypted ChatKey uploaded to server
+6. New device downloads encrypted ChatKey
+7. New device decrypts ChatKey locally
+8. Full chat history becomes readable
 
-Encrypted message fan-out
+> The server **never participates in encryption or decryption**.
 
-Offline message recovery
+---
 
-🧠 System-Design First
+## Client Logic
 
-Append-only message model
+### On Login
 
-Stateless message services
+* Fetch encrypted ChatKeys for device
+* Decrypt ChatKeys using private key
+* Store decrypted ChatKeys in memory
 
-Horizontally scalable architecture
+### Sending Messages
 
-End-to-End Encryption Model
+* Encrypt message with ChatKey
+* Send ciphertext + IV
 
-This system follows a conversation-level encryption model.
+### Receiving Messages
 
-Key Principles
+* Subscribe to realtime channel
+* Decrypt messages locally using ChatKey
 
-Each chat has exactly one symmetric ChatKey
+---
 
-All messages in that chat are encrypted using that ChatKey
+## Storage Rules
 
-Each device has its own public/private keypair
+### Client (Device)
 
-ChatKey is encrypted separately for every device
+* Private keys → Encrypted IndexedDB
+* Decrypted ChatKeys → Memory only
+* Messages → Decrypted in runtime
 
-Server never sees plaintext messages or keys
+### Server
 
-Multi-Device Architecture
-Device Identity Rules
+* Public keys → Database
+* Encrypted ChatKeys → Per device
+* Messages → Ciphertext + metadata only
 
-Every device generates its own asymmetric keypair
+---
 
-Private key never leaves the device
+## System Architecture
 
-Public key is uploaded to the server
+### Core Services
 
-Each device is treated as an independent cryptographic identity
+* **WebSocket Gateway** – realtime messaging
+* **Message Service** – stateless write path
+* **Presence Service** – online / typing state
+* **Media Service** – S3 + CDN for attachments
+* **Notification Service** – background delivery
 
-Device Linking Flow
+---
 
-New device generates keypair
+### Infrastructure Concepts Applied
 
-Uploads public key to server
+* Kafka → message event stream
+* RabbitMQ → delivery acknowledgements
+* Redis → online presence, typing indicators
+* CQRS → optimized reads vs writes
+* Rate limiting → spam protection
+* Prometheus → message latency metrics
 
-Existing device encrypts ChatKey using new device’s public key
+---
 
-Server stores encrypted ChatKey for that device
+## Tech Stack
 
-New device decrypts ChatKey locally
+### Frontend
 
-Cryptography Design
-Message Encryption
+* React / Next.js
+* TypeScript
+* IndexedDB (secure key storage)
+* WebCrypto API (AES-GCM, RSA/ECDH)
+* WebSockets
 
-Algorithm: AES-GCM
+### Backend
 
-Key: ChatKey (per conversation)
+* Node.js
+* Supabase Realtime
+* PostgreSQL
+* Redis
+* Kafka / RabbitMQ
+* AWS S3 + CDN
 
-IV: Randomly generated per message
+---
 
-ciphertext = AES_GCM_Encrypt(ChatKey, plaintext, iv)
+## Security Guarantees
 
-Chat Key Encryption
+* Server cannot read messages
+* Compromised database exposes only ciphertext
+* Device-level isolation
+* Forward secrecy at conversation level
+* Replay-safe encryption using per-message IVs
 
-Algorithm: Public-key encryption (RSA/ECC)
+---
 
-EncryptedChatKey = Encrypt(ChatKey, DevicePublicKey)
+## Failure & Recovery Model
 
-Key Properties
+### Device Loss
 
-Same ChatKey
+* Private key lost → messages unreadable
+* Requires device re-linking
+* ChatKeys must be re-shared
 
-Different encrypted copies per device
+### Network Failure
 
-Only correct private key can decrypt its copy
+* Messages queued and replayed
+* Ordering preserved on reconnect
+* At-least-once delivery guarantee
 
-Storage Rules
-Client-Side
-
-Private keys → Encrypted IndexedDB
-
-Decrypted ChatKeys → Memory only
-
-Messages → Encrypted at rest
-
-Server-Side
-
-Public keys
-
-Encrypted ChatKeys (per device)
-
-Encrypted messages (ciphertext + IV)
-
-Metadata only (timestamps, sender ID)
-
-🚫 No plaintext ever stored on server
-
-Client Workflow
-On Login
-
-Load device private key from IndexedDB
-
-Fetch encrypted ChatKeys
-
-Decrypt ChatKeys locally
-
-Cache ChatKeys in memory
-
-Sending a Message
-
-Encrypt message with ChatKey
-
-Send ciphertext + IV
-
-Server broadcasts ciphertext
-
-Receiving a Message
-
-Receive encrypted payload
-
-Decrypt using ChatKey
-
-Render plaintext locally
-
-Backend Architecture
-Core Services
-
-WebSocket / Realtime Server — message delivery
-
-Message Service — append-only message writes
-
-Presence Service — online status, typing indicators
-
-Media Service — S3 + CDN for encrypted media
-
-Notification Service — push notifications
-
-Infrastructure
-
-Supabase Realtime / WebSockets
-
-PostgreSQL / MongoDB
-
-Redis (presence, typing)
-
-Object storage for media
-
-System Design Concepts Applied
-
-Append-Only Logs — immutable message history
-
-CQRS — optimized reads vs writes
-
-Kafka-style Streams — message pipelines
-
-RabbitMQ-style ACKs — delivery confirmations
-
-Redis — online presence & typing indicators
-
-Rate Limiting — spam prevention
-
-Session-based Socket Auth
-
-Prometheus Metrics — latency tracking
-
-Installation
-git clone https://github.com/your-username/securechat
-cd securechat
-
-npm install
-npm run dev
-
-
-Environment variables:
-
-DATABASE_URL=
-REDIS_URL=
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-
-Security Guarantees
-
-✔ Server cannot decrypt messages
-✔ Server cannot decrypt ChatKeys
-✔ Each device compromise is isolated
-✔ Message confidentiality preserved
-✔ Secure multi-device re-sync
-✔ Loss of private key = loss of access (by design)
-
-Interview Highlights
-
-“Each conversation uses a single symmetric key, but that key is encrypted independently for every device. This allows true multi-device support without ever exposing keys to the server.”
-
-“Messages are immutable append-only events; reads are optimized separately using CQRS.”
-
-“The server is cryptographically blind — it only routes ciphertext.”
-
-License
-
-MIT License
-
-Built By
-
-Shivraj Pawar
-Backend / Distributed Systems / Encryption-Focused Engineer
